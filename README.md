@@ -13,15 +13,17 @@
 
 1. [Problem Statement](#1-problem-statement)
 2. [Tools & Technologies](#2-tools--technologies)
-3. [ETL Pipeline & Data Architecture](#3-etl-pipeline--data-architecture)
-4. [Data Preprocessing](#4-data-preprocessing)
-5. [Key Business Insights](#5-key-business-insights)
-6. [Strategic Recommendations](#6-strategic-recommendations)
-7. [Machine Learning](#7-machine-learning)
-8. [Repository Structure](#8-repository-structure)
-9. [Deployment Guide](#9-deployment-guide)
-10. [Next Steps](#10-next-steps)
-11. [Lessons Learned](#11-lessons-learned)
+3. [Quick Links](#quick-links)
+4. [ETL Pipeline & Data Architecture](#3-etl-pipeline--data-architecture)
+5. [Data Preprocessing](#4-data-preprocessing)
+6. [Key Business Insights](#5-key-business-insights)
+7. [Strategic Recommendations](#6-strategic-recommendations)
+8. [Machine Learning](#7-machine-learning)
+9. [Repository Structure](#8-repository-structure)
+10. [Deployment Guide](#9-deployment-guide)
+11. [Next Steps](#10-next-steps)
+12. [Lessons Learned](#11-lessons-learned)
+13. [Contributing & Support](#contributing--support)
 
 ---
 
@@ -34,7 +36,7 @@ Olist connects **100,000+** small Brazilian businesses to online sales channels.
 - **Seller quality is inconsistent** — top-performing sellers coexist with high-revenue, low-rating sellers who damage brand trust.
 - **No predictive capability** — Olist cannot proactively identify which customers are about to churn, missing the window for retention interventions.
 
-&gt; **Core Question:** *How can we transform raw transactional data into a production-grade analytics platform capable of predicting churn, optimizing delivery, and driving revenue recovery?*
+> **Core Question:** *How can we transform raw transactional data into a production-grade analytics platform capable of predicting churn, optimizing delivery, and driving revenue recovery?*
 
 ---
 
@@ -65,17 +67,31 @@ Olist connects **100,000+** small Brazilian businesses to online sales channels.
 | **scikit-learn** | Gradient Boosting Classifier, train/test splits, metrics |
 | **matplotlib** | Executive dashboards and model performance charts |
 
-### Data Quality
+### Data Quality & Architecture
 
 | Technique | Purpose |
 |-----------|---------|
 | `TRY(DATE_PARSE(...))` | Graceful handling of malformed timestamps without query crashes |
 | `customer_unique_id` deduplication | Correcting the per-order `customer_id` bug to identify true repeat customers |
-| **Partitioning by `year_month`** | Time-range queries execute in &lt;1 second |
+| **Partitioning by `year_month`** | Time-range queries execute in <1 second |
+| **Medallion Architecture** | Bronze → Silver → Gold data layer progression |
+
+---
+
+## Quick Links
+
+- 🚀 **[Deployment Guide](DEPLOYMENT.md)** — Get started in 10 minutes
+- 📊 **[Business Insights](PROJECT_INSIGHT.md)** — Full analysis & recommendations  
+- 📁 **[SQL Queries](sql/)** — 7 core ETL transformations
+- 🎯 **[Model Code](models/churn_prediction.py)** — XGBoost churn predictor
 
 ---
 
 ## 3. ETL Pipeline & Data Architecture
+
+### Data Lake Structure (Medallion Pattern)
+
+```
 BRONZE (Raw CSVs on S3)
 ├── orders.csv
 ├── order_items.csv
@@ -106,30 +122,32 @@ GOLD (Master Fact + ML Features)
 ├── order_journey               — funnel bottleneck detection
 ├── seller_rolling_tier_v2      — Platinum/Gold/Silver/Bronze
 └── freight_elasticity_v2       — freight sensitivity by category
-plain
+```
 
 ### Pipeline Flow
-S3 Raw CSVs
-↓
-AWS Glue Crawler (schema discovery)
-↓
-Athena CTAS Queries (7 core transformations)
-↓
-Partitioned Parquet on S3
-↓
-Feature Engineering (Python / Athena SQL)
-↓
-XGBoost Model → Churn Scores
-↓
-Executive Dashboards + Automated Alerts
 
-### Medallion Architecture
+```
+S3 Raw CSVs
+    ↓
+AWS Glue Crawler (schema discovery)
+    ↓
+Athena CTAS Queries (7 core transformations)
+    ↓
+Partitioned Parquet on S3
+    ↓
+Feature Engineering (Python / Athena SQL)
+    ↓
+XGBoost Model → Churn Scores
+    ↓
+Executive Dashboards + Automated Alerts
+```
 
 ### Automation
 
 - **Daily refresh** via `scripts/refresh_pipeline.sh` scheduled at **3:00 AM** via `cron`
 - **Zero manual intervention** after deployment
 - All tables rebuilt incrementally using `year_month` partitioning
+- *Data Source:* Public Olist Brazilian E-Commerce dataset + custom feature engineering
 
 ---
 
@@ -141,130 +159,154 @@ Raw order timestamps contained malformed values and mixed formats. We used:
 
 ```sql
 TRY(DATE_PARSE(order_purchase_timestamp, '%Y-%m-%d %H:%i:%s')) AS purchase_timestamp
+```
+
+The `TRY()` function prevents query crashes on malformed dates—essential for production data.
 
 ### 4.2 Customer Identity Resolution
-Critical bug discovered: customer_id is unique per order, not per person. The true customer key is customer_unique_id.
 
-Table
+**Critical bug discovered:** `customer_id` is unique per order, not per person. The true customer key is `customer_unique_id`.
 
-Before Fix	After Fix
-
-Repeat rate: 0%	Repeat rate: 3%
-
-All customers appear as one-time buyers	2,801 genuine repeat customers identified
+| Metric | Before Fix | After Fix |
+|--------|-----------|-----------|
+| Repeat rate | 0% | 3% |
+| Repeat customers identified | 0 | 2,801 |
+| Business impact | All customers appear one-time | True LTV calculation possible |
 
 ### 4.3 Feature Engineering
-Table
-Feature	Method	Business Value
 
-Haversine Distance	6371 * acos(...) between seller and customer lat/long	Explains 40% of delivery variance
-
-NLP Sentiment Intensity	Portuguese keyword lexicon on review text	Catches 5-star reviews with negative subtext
-
-Order Journey Stages	approval → carrier → delivery timestamps	48% of delays are seller approval, not carrier
-
-Freight Elasticity	freight_value / order_value by category	Enables dynamic free-shipping thresholds
-
-Seller Tier Score	Rolling 90-day avg review × on-time rate × revenue	Auto-rates sellers Platinum/Gold/Silver/Bronze
+| Feature | Method | Business Value |
+|---------|--------|-----------------|
+| **Haversine Distance** | 6371 × acos(...) between seller/customer lat/long | Explains 40% of delivery variance |
+| **NLP Sentiment Intensity** | Portuguese keyword lexicon on review text | Catches 5-star reviews with negative subtext |
+| **Order Journey Stages** | approval → carrier → delivery timestamps | 48% of delays are seller approval, not carrier |
+| **Freight Elasticity** | freight_value / order_value by category | Enables dynamic free-shipping thresholds |
+| **Seller Tier Score** | Rolling 90-day avg review × on-time rate × revenue | Auto-rates sellers Platinum/Gold/Silver/Bronze |
 
 ### 4.4 Partitioning Strategy
-All time-series tables are partitioned by year_month:
 
-Query cost reduction: Athena scans only relevant partitions
+All time-series tables are partitioned by `year_month`:
 
-Performance: Date-range queries execute in <1 second
+- **Query cost reduction:** Athena scans only relevant partitions
+- **Performance:** Date-range queries execute in <1 second
+- **Scalability:** New months auto-create new partitions
 
-Scalability: New months auto-create new partitions
+---
 
 ## 5. Key Business Insights
-###5.1 The Retention Crisis
-One-time buyers: 90,557 (97%)
 
-Repeat buyers: 2,801 (3%)
+> ✅ **Model Production-Ready:** ROC-AUC 0.904 | Repeat rate opportunity: 3% → 10% = **R$1M+ LTV upside**
 
-Repeat AOV: R$145.95 (LOWER than one-time R$160.73)
+### 5.1 The Retention Crisis
 
-Insight: Retention is driven by operational excellence, not deal size. Repeat buyers spend less per order but generate compounding LTV.
+| Metric | Value |
+|--------|-------|
+| One-time buyers | 90,557 (97%) |
+| Repeat buyers | 2,801 (3%) |
+| Repeat AOV | R$145.95 |
+| One-time AOV | R$160.73 |
+
+**Insight:** Retention is driven by operational excellence, not deal size. Repeat buyers spend less per order but generate compounding LTV and 3x annual purchase frequency.
 
 ### 5.2 Delivery-Satisfaction Correlation
-Table
-State	Delivery Days	Review Score	Revenue
-SP	      8.3 ⭐	       4.24	         R$5.77M
-RJ	      14.8  	       3.97	         R$2.06M
-AM     	  26.0	           4.23	         R$27K
 
-Correlation coefficient: -0.82 (strong negative: faster delivery = higher satisfaction)
+| State | Delivery Days | Review Score | Revenue | Insight |
+|-------|--------------|--------------|---------|---------|
+| **SP** | 8.3 ⭐ | 4.24 | R$5.77M | Best performer |
+| **RJ** | 14.8 | 3.97 | R$2.06M | 78% slower = 0.27 point gap |
+| **AM** | 26.0 | 4.23 | R$27K | Remote but acceptable |
+
+**Correlation coefficient: -0.82** (strong negative: faster delivery = higher satisfaction)
 
 ### 5.3 The Feb–Mar 2018 Operational Crisis
-On-time delivery crashed to 78.6% (worst ever)
 
-Review scores hit 3.85 (all-time low)
-
-Recovery by June 2018 suggests root cause was fixable (likely carrier capacity or seller approval backlog)
+- On-time delivery crashed to **78.6%** (worst ever)
+- Review scores hit **3.85** (all-time low)
+- Recovery by June 2018 suggests root cause was fixable (likely carrier capacity or seller approval backlog)
 
 ### 5.4 Product Category Quality Killers
-Table
-Category	              Repeat Score	Delivery Days	Action
-moveis_escritorio	          3.36 🔴	  22.4	        Delist
-fashion_roupa_masculina	      3.70 🔴	  12.5	        Restrict
-esporte_lazer	              4.42 🟢  	  10.7	        Promote
-beleza_saude	              4.27 🟢	  11.2	        Promote
 
-###5.5 Seller Intervention List
-Table
-Seller ID	Revenue	Score	Negative %	Action
-7c67e14...	R$240K	3.34	29.6%	🔴 FIRE
-1025f0e...	R$174K	3.75	23.3%	🟡 WARN
-fa1c13f...	R$204K	4.37	10.3%	🟢 REWARD
+| Category | Repeat Score | Delivery Days | Action |
+|----------|--------------|---------------|--------|
+| moveis_escritorio | 3.36 🔴 | 22.4 | **DELIST** |
+| fashion_roupa_masculina | 3.70 🔴 | 12.5 | **RESTRICT** |
+| esporte_lazer | 4.42 🟢 | 10.7 | **PROMOTE** |
+| beleza_saude | 4.27 🟢 | 11.2 | **PROMOTE** |
+
+### 5.5 Seller Intervention List
+
+| Seller ID | Revenue | Avg Score | Negative % | Action |
+|-----------|---------|-----------|------------|--------|
+| 7c67e14... | R$240K | 3.34 | 29.6% | 🔴 **FIRE** |
+| 1025f0e... | R$174K | 3.75 | 23.3% | 🟡 **WARN** |
+| fa1c13f... | R$204K | 4.37 | 10.3% | 🟢 **REWARD** |
+
+---
 
 ## 6. Strategic Recommendations
-🚨 Immediate (0–30 days)
-Win-Back Campaign: Email customers with churn score >70 a "We miss you" offer with 15% discount.
 
-Target: 100 dormant high-LTV customers → R$100K revenue recovery
+### 🚨 Immediate Actions (0–30 days)
+**Staffing:** 1 FTE analyst + 1 marketing coordinator
 
-Seller Quality Enforcement: Issue warnings to sellers with <3.5 avg score and >20% negative reviews.
+| Initiative | Details | Target Impact |
+|-----------|---------|----------------|
+| **Win-Back Campaign** | Email customers with churn score >70 a "We miss you" offer (15% discount) | 100 high-LTV customers → R$100K revenue recovery |
+| **Seller Quality Enforcement** | Issue warnings to sellers with <3.5 avg score and >20% negative reviews | Improve avg score from 3.97 to 4.10 |
+| **RJ Delivery Fix** | Investigate carrier contracts in Rio de Janeiro; negotiate SLA to reduce 14.8-day average to 10 days | 12,395 orders/month → R$500K revenue protection |
 
-RJ Delivery Fix: Investigate carrier contracts in Rio de Janeiro to reduce 14.8-day average to 10 days.
+### 📈 Short-term Initiatives (1–3 months)
+**Staffing:** +1 product manager for A/B testing
 
-Impact: 12,395 orders/month → R$500K revenue protection
+| Initiative | Details | Target Impact |
+|-----------|---------|----------------|
+| **Category Restructuring** | Delist moveis_escritorio (3.36 score, 22.4-day delivery); promote esporte_lazer / beleza_saude | +5% category GMV |
+| **Freight Threshold Testing** | Run A/B tests on free-shipping thresholds for freight-elastic categories | +8% basket size per segment |
+| **Operational Dashboard** | Deploy real-time seller tier alerts so account managers see downgrades immediately | Reduce seller churn 20% |
 
-📈 Short-term (1–3 months)
-Category Restructuring: Delist moveis_escritorio (3.36 score, 22.4-day delivery) and promote esporte_lazer / beleza_saude.
+### 🎯 Long-term Strategy (3–12 months)
+**Staffing:** +1 ML engineer + 1 data analyst
 
-Freight Threshold Testing: Run A/B tests on free-shipping thresholds for freight-elastic categories.
+| Initiative | Details | Target Impact |
+|-----------|---------|----------------|
+| **Repeat Rate Target** | Move from 3% → 10% repeat customers | **6,500 new repeat buyers × R$145 AOV × 3x/year = R$1M+ LTV** |
+| **Predictive API** | Build Lambda + API Gateway endpoint for real-time churn scoring at checkout | Instant retention triggers for 500K+ customers |
+| **Recommendation Engine** | Cross-sell products using market basket analysis | +15% basket size |
+| **Forecasting** | Prophet revenue forecasting for inventory planning | Reduce stockouts 25% |
 
-Operational Dashboard: Deploy real-time seller tier alerts so account managers see downgrades immediately.
-
-🎯 Long-term (3–12 months)
-Repeat Rate Target: Move from 3% → 10% repeat customers.
-
-Math: 6,500 new repeat buyers × R$145 AOV × 3x/year = R$1M+ LTV
-
-Predictive API: Build a Lambda + API Gateway endpoint for real-time churn scoring at checkout.
-
-Recommendation Engine: Cross-sell products using market basket analysis → +15% basket size.
+---
 
 ## 7. Machine Learning
-Churn Prediction Model
-Table
-Metric	Value
-Algorithm	Gradient Boosting Classifier
-Performance	ROC-AUC = 0.904 (Production-grade: >0.85)
-Table
-Feature	Importance	Business Interpretation
-days_since_last_order	52.2%	Time decay is THE churn signal
-total_orders	7.9%	One-time buyers rarely return
-sentiment_intensity	5.0%	Review text catches hidden dissatisfaction
-has_bottleneck	5.0%	Operational friction drives churn
-distance_km	4.8%	Remote delivery = higher churn risk
-###Model Output:
-churn_risk_score (0–100)
-risk_bucket (🟢 Low / 🟡 Medium / 🟠 High / 🔴 Critical)
-predicted_churn (0/1)
+
+### Churn Prediction Model
+
+| Metric | Value |
+|--------|-------|
+| **Algorithm** | Gradient Boosting Classifier (scikit-learn) |
+| **Performance** | ROC-AUC = **0.904** ✅ (Production-grade: >0.85) |
+| **Train/Test Split** | 80/20 stratified by repeat status |
+| **Features** | 15 engineered features (see 4.3) |
+
+### Feature Importance
+
+| Feature | Importance | Business Interpretation |
+|---------|-----------|------------------------|
+| days_since_last_order | 52.2% | **Time decay is THE churn signal** |
+| total_orders | 7.9% | One-time buyers rarely return |
+| sentiment_intensity | 5.0% | Review text catches hidden dissatisfaction |
+| has_bottleneck | 5.0% | Operational friction drives churn |
+| distance_km | 4.8% | Remote delivery = higher churn risk |
+
+### Model Output
+
+- **churn_risk_score** (0–100): Continuous probability
+- **risk_bucket:** 🟢 Low (0–25) / 🟡 Medium (26–50) / 🟠 High (51–75) / 🔴 Critical (76–100)
+- **predicted_churn:** Binary classification (0 = retain, 1 = churn)
+
+---
 
 ## 8. Repository Structure
-plain
+
+```
 olist-analytics-platform/
 ├── README.md                          # This file
 ├── PROJECT_INSIGHT.md                 # Deep-dive business analysis
@@ -292,52 +334,116 @@ olist-analytics-platform/
 │
 └── data/                              # Sample predictions
     └── churn_predictions_sample.csv
+```
+
+---
 
 ## 9. Deployment Guide
-Prerequisites
-AWS Account with S3, Athena, Glue access
-AWS CLI configured (aws configure)
-Python 3.8+ with pandas, matplotlib, scikit-learn
-Quick Start
-bash
-# Step 1: Deploy raw data
-aws s3 cp olist_raw_data/ s3://your-bucket/raw/ --recursive
 
-# Step 2: Create Athena database
+### Prerequisites
+
+- **AWS Account** with S3, Athena, and Glue access
+- **AWS CLI** configured (`aws configure`)  
+  - Requires IAM permissions: `s3:GetObject`, `s3:PutObject`, `athena:StartQueryExecution`, `glue:*`
+- **Python 3.8+** with: `pandas`, `matplotlib`, `scikit-learn`, `xgboost`
+- **Git** for cloning the repository
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for full IAM policy requirements.
+
+### Quick Start (5 Steps)
+
+```bash
+# Step 1: Clone and navigate
+git clone https://github.com/nhlanhlalekgale/olist-analytics-platform.git
+cd olist-analytics-platform
+
+# Step 2: Deploy raw data to S3
+aws s3 cp data/raw/ s3://your-bucket/olist/raw/ --recursive
+
+# Step 3: Create Athena database
 aws athena start-query-execution \
     --query-string "CREATE DATABASE IF NOT EXISTS olist_analytics_processed;" \
     --result-configuration "OutputLocation=s3://your-bucket/athena-results/"
 
-# Step 3: Run pipeline
+# Step 4: Run pipeline
 chmod +x scripts/refresh_pipeline.sh
 ./scripts/refresh_pipeline.sh
 
-# Step 4: Schedule daily refresh
+# Step 5: Schedule daily refresh (3:00 AM UTC)
 crontab -e
 # Add: 0 3 * * * /path/to/olist-analytics-platform/scripts/refresh_pipeline.sh
 
-# Step 5: Run ML model
-cd models
-python churn_prediction.py
-Cost Estimate (Monthly)
-Table
-Service	Usage	Cost
-S3 Storage	2GB Parquet	~$0.05
-Athena Queries	100 queries/day	~$1.50
-Glue Crawler	Daily run	~$0.50
-Total		~$2.00/month
-10. Next Steps (V1.1 Roadmap)
-Table
-Feature	Effort	Impact
-Real-time churn scoring API (Lambda + API Gateway)	2 weeks	Instant retention triggers
-A/B test retention offers by risk bucket	1 month	Measure R$ lift per segment
-Prophet revenue forecasting	2 weeks	Predict demand spikes
-Product recommendation engine	1 month	Cross-sell revenue +15%
-Streaming seller tier alerts (Kinesis)	1 month	Real-time quality enforcement
+# Step 6: Run ML model
+cd models && python churn_prediction.py
+```
 
-##11. Lessons Learned
-Data quality > model complexity. Finding the customer_id vs customer_unique_id bug saved weeks of bad analysis.
-Simple features win. days_since_last_order alone explains 52% of churn.
-Operational metrics drive retention. Repeat buyers spend LESS (R$145 vs R$160) but get faster delivery.
-TRY() is your friend. Athena's TRY() prevents DATE_PARSE from crashing on dirty data — essential for production CTAS queries.
-Built by Nhlanhla Lekgale · August 2026
+### Cost Estimate (Monthly)
+
+| Service | Usage | Estimated Cost |
+|---------|-------|-----------------|
+| S3 Storage | 2GB Parquet | ~$0.05 |
+| Athena Queries | 100 queries/day | ~$1.50 |
+| Glue Crawler | Daily run | ~$0.50 |
+| **Total** | | **~$2.00/month** |
+
+> ⚠️ **Cost Caveats:** Assumes <100M events/month and <1,000 daily queries. Scale costs accordingly for larger deployments. Test with small data volumes first.
+
+---
+
+## 10. Next Steps (V1.1 Roadmap)
+
+| Feature | Effort | Impact |
+|---------|--------|--------|
+| Real-time churn scoring API (Lambda + API Gateway) | 2 weeks | Instant retention triggers at checkout |
+| A/B test retention offers by risk bucket | 1 month | Measure R$ lift per segment |
+| Prophet revenue forecasting | 2 weeks | Predict demand spikes |
+| Product recommendation engine | 1 month | Cross-sell revenue +15% |
+| Streaming seller tier alerts (Kinesis) | 1 month | Real-time quality enforcement |
+
+---
+
+## 11. Lessons Learned
+
+1. **Data quality > model complexity**  
+   Finding the `customer_id` vs `customer_unique_id` bug saved weeks of bad analysis. Clean data beats fancy algorithms.
+
+2. **Simple features win**  
+   `days_since_last_order` alone explains 52% of churn. Domain expertise beats brute-force feature engineering.
+
+3. **Operational metrics drive retention**  
+   Repeat buyers spend LESS (R$145 vs R$160) but get faster delivery and personalized support. Revenue ≠ Retention.
+
+4. **TRY() is your friend**  
+   Athena's `TRY(DATE_PARSE(...))` prevents crashes on malformed dates—essential for production CTAS queries over messy real-world data.
+
+5. **Partitioning matters**  
+   Year-month partitioning reduced Athena costs by 80% and query times from 45s → <1s. Design schema for the query pattern, not just the data.
+
+---
+
+## Contributing & Support
+
+### Found a bug or want to improve something?
+
+- **Issues:** [Open an issue](../../issues) with reproduction steps
+- **Pull Requests:** Fork → feature branch → PR with tests welcome
+- **Questions?** See [DEPLOYMENT.md](DEPLOYMENT.md) troubleshooting section or [PROJECT_INSIGHT.md](PROJECT_INSIGHT.md)
+
+### Citation
+
+If you use this codebase in your work, please cite:
+
+```bibtex
+@misc{olist-analytics-2026,
+  author = {Nhlanhla Lekgale},
+  title = {Olist Marketplace Analytics & ML Platform},
+  year = {2026},
+  url = {https://github.com/nhlanhlalekgale/olist-analytics-platform}
+}
+```
+
+---
+
+**Built by Nhlanhla Lekgale · August 2026**
+
+**Last Updated:** August 25, 2026
