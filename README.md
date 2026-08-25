@@ -143,55 +143,72 @@ Raw order timestamps contained malformed values and mixed formats. We used:
 TRY(DATE_PARSE(order_purchase_timestamp, '%Y-%m-%d %H:%i:%s')) AS purchase_timestamp
 
 ### 4.2 Customer Identity Resolution
-
 Critical bug discovered: customer_id is unique per order, not per person. The true customer key is customer_unique_id.
+
 Table
+
 Before Fix	After Fix
+
 Repeat rate: 0%	Repeat rate: 3%
+
 All customers appear as one-time buyers	2,801 genuine repeat customers identified
 
 ### 4.3 Feature Engineering
 Table
 Feature	Method	Business Value
+
 Haversine Distance	6371 * acos(...) between seller and customer lat/long	Explains 40% of delivery variance
+
 NLP Sentiment Intensity	Portuguese keyword lexicon on review text	Catches 5-star reviews with negative subtext
+
 Order Journey Stages	approval → carrier → delivery timestamps	48% of delays are seller approval, not carrier
+
 Freight Elasticity	freight_value / order_value by category	Enables dynamic free-shipping thresholds
+
 Seller Tier Score	Rolling 90-day avg review × on-time rate × revenue	Auto-rates sellers Platinum/Gold/Silver/Bronze
 
 ### 4.4 Partitioning Strategy
 All time-series tables are partitioned by year_month:
+
 Query cost reduction: Athena scans only relevant partitions
+
 Performance: Date-range queries execute in <1 second
+
 Scalability: New months auto-create new partitions
 
 ## 5. Key Business Insights
 ###5.1 The Retention Crisis
 One-time buyers: 90,557 (97%)
+
 Repeat buyers: 2,801 (3%)
+
 Repeat AOV: R$145.95 (LOWER than one-time R$160.73)
+
 Insight: Retention is driven by operational excellence, not deal size. Repeat buyers spend less per order but generate compounding LTV.
 
 ### 5.2 Delivery-Satisfaction Correlation
 Table
 State	Delivery Days	Review Score	Revenue
-SP	8.3 ⭐	4.24	R$5.77M
-RJ	14.8	3.97	R$2.06M
-AM	26.0	4.23	R$27K
+SP	      8.3 ⭐	       4.24	         R$5.77M
+RJ	      14.8  	       3.97	         R$2.06M
+AM     	  26.0	           4.23	         R$27K
+
 Correlation coefficient: -0.82 (strong negative: faster delivery = higher satisfaction)
 
 ### 5.3 The Feb–Mar 2018 Operational Crisis
 On-time delivery crashed to 78.6% (worst ever)
+
 Review scores hit 3.85 (all-time low)
+
 Recovery by June 2018 suggests root cause was fixable (likely carrier capacity or seller approval backlog)
 
 ### 5.4 Product Category Quality Killers
 Table
-Category	Repeat Score	Delivery Days	Action
-moveis_escritorio	3.36 🔴	22.4	Delist
-fashion_roupa_masculina	3.70 🔴	12.5	Restrict
-esporte_lazer	4.42 🟢	10.7	Promote
-beleza_saude	4.27 🟢	11.2	Promote
+Category	              Repeat Score	Delivery Days	Action
+moveis_escritorio	          3.36 🔴	  22.4	        Delist
+fashion_roupa_masculina	      3.70 🔴	  12.5	        Restrict
+esporte_lazer	              4.42 🟢  	  10.7	        Promote
+beleza_saude	              4.27 🟢	  11.2	        Promote
 
 ###5.5 Seller Intervention List
 Table
@@ -203,18 +220,29 @@ fa1c13f...	R$204K	4.37	10.3%	🟢 REWARD
 ## 6. Strategic Recommendations
 🚨 Immediate (0–30 days)
 Win-Back Campaign: Email customers with churn score >70 a "We miss you" offer with 15% discount.
+
 Target: 100 dormant high-LTV customers → R$100K revenue recovery
+
 Seller Quality Enforcement: Issue warnings to sellers with <3.5 avg score and >20% negative reviews.
+
 RJ Delivery Fix: Investigate carrier contracts in Rio de Janeiro to reduce 14.8-day average to 10 days.
+
 Impact: 12,395 orders/month → R$500K revenue protection
+
 📈 Short-term (1–3 months)
 Category Restructuring: Delist moveis_escritorio (3.36 score, 22.4-day delivery) and promote esporte_lazer / beleza_saude.
+
 Freight Threshold Testing: Run A/B tests on free-shipping thresholds for freight-elastic categories.
+
 Operational Dashboard: Deploy real-time seller tier alerts so account managers see downgrades immediately.
+
 🎯 Long-term (3–12 months)
 Repeat Rate Target: Move from 3% → 10% repeat customers.
+
 Math: 6,500 new repeat buyers × R$145 AOV × 3x/year = R$1M+ LTV
+
 Predictive API: Build a Lambda + API Gateway endpoint for real-time churn scoring at checkout.
+
 Recommendation Engine: Cross-sell products using market basket analysis → +15% basket size.
 
 ## 7. Machine Learning
