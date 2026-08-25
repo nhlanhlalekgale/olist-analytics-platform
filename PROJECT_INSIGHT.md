@@ -43,11 +43,12 @@ SELECT * FROM olist_gold.churn_risk LIMIT 100;
 | Resource | Location | Purpose |
 |----------|----------|---------|
 | **Refresh Script** | [`./refresh_pipeline.sh`](./refresh_pipeline.sh) | Daily ETL automation (cron-ready) |
-| **Executive Dashboard** | [`./olist_executive_dashboard.png`](./olist_executive_dashboard.png) | Revenue by state, category, seller tier |
-| **Cohort Analysis** | [`./olist_final_executive_dashboard.png`](./olist_final_executive_dashboard.png) | Repeat buyer cohorts + geographic trends |
-| **ML Dashboard** | [`./olist_churn_model_dashboard.png`](./olist_churn_model_dashboard.png) | Churn model performance & risk distribution |
+| **Executive Dashboard** | [`./dashboards/olist_executive_dashboard.png`](./dashboards/olist_executive_dashboard.png) | Revenue by state, category, seller tier |
+| **Cohort Analysis** | [`./dashboards/olist_final_executive_dashboard.png`](./dashboards/olist_final_executive_dashboard.png) | Repeat buyer cohorts + geographic trends |
+| **ML Dashboard** | [`./dashboards/olist_churn_model_dashboard.png`](./dashboards/olist_churn_model_dashboard.png) | Churn model performance & risk distribution |
 | **Sample Predictions** | [`./churn_predictions_sample.csv`](./churn_predictions_sample.csv) | 1,000 scored customers with risk buckets |
 | **SQL Queries** | [`./sql/`](./sql/) | 30+ production-ready Athena queries |
+| **Dashboard Docs** | [`./dashboards/README.md`](./dashboards/README.md) | Guide to all dashboards |
 
 ---
 
@@ -311,14 +312,15 @@ Prioritized roadmap for production enhancements:
 
 ## 📁 FILES & ARTIFACTS
 
-All files are in the root directory of this repository:
+All files are organized by type in the repository:
 
 | File | Type | Purpose |
 |------|------|---------|
 | **[refresh_pipeline.sh](./refresh_pipeline.sh)** | Script | Daily ETL automation; Athena CTAS + Parquet writes |
-| **[olist_executive_dashboard.png](./olist_executive_dashboard.png)** | Dashboard | 9-panel: revenue by state, category, seller tier, cohorts |
-| **[olist_final_executive_dashboard.png](./olist_final_executive_dashboard.png)** | Dashboard | 4-panel: repeat buyer cohorts, geographic heatmap, trend lines |
-| **[olist_churn_model_dashboard.png](./olist_churn_model_dashboard.png)** | Dashboard | Churn model ROC curve, feature importance, risk distribution |
+| **[dashboards/olist_executive_dashboard.png](./dashboards/olist_executive_dashboard.png)** | Dashboard | 9-panel: revenue by state, category, seller tier, cohorts |
+| **[dashboards/olist_final_executive_dashboard.png](./dashboards/olist_final_executive_dashboard.png)** | Dashboard | 4-panel: repeat buyer cohorts, geographic heatmap, trend lines |
+| **[dashboards/olist_churn_model_dashboard.png](./dashboards/olist_churn_model_dashboard.png)** | Dashboard | Churn model ROC curve, feature importance, risk distribution |
+| **[dashboards/README.md](./dashboards/README.md)** | Documentation | Dashboard guide and update instructions |
 | **[churn_predictions_sample.csv](./churn_predictions_sample.csv)** | Data | 1,000 scored customers: customer_id, churn_risk_score, risk_bucket, predicted_churn |
 | **[sql/](./sql/)** | Directory | 30+ production-ready Athena queries (by topic: retention, seller, category, geo) |
 
