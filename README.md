@@ -1,4 +1,4 @@
-**##Olist Marketplace Analytics & ML Platform**##
+##Olist Marketplace Analytics & ML Platform##
 From Raw CSVs to Production Intelligence
 https://aws.amazon.com
 https://python.org
