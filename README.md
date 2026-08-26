@@ -3,7 +3,10 @@
 **From Raw CSVs to Production Intelligence**
 
 [![AWS](https://img.shields.io/badge/AWS-S3%20%7C%20Athena-blue)](https://aws.amazon.com)
+[![AWS Glue Crawler](https://img.shields.io/badge/AWS-Glue%20Crawler-blue)](https://aws.amazon.com/glue/)
 [![Python](https://img.shields.io/badge/Python-3.8%2B-green)](https://python.org)
+[![SQL](https://img.shields.io/badge/SQL-Athena-lightgrey)](sql/)
+[![Visualizations](https://img.shields.io/badge/Visualizations-Python%20%7C%20Matplotlib-purple)](dashboards/)
 [![ML](https://img.shields.io/badge/ML-XGBoost-orange)](https://xgboost.ai)
 [![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
